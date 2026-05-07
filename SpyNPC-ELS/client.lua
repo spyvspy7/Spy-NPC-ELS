@@ -3,6 +3,7 @@
     client.lua
 
     Architecture:
+    ─────────────
     - A scanner thread runs every NPC_ELS.scanInterval ms. It looks for NPC
       vehicles within NPC_ELS.scanRadius that have a siren active and whose
       model is listed in NPC_ELS.vehicles.
@@ -15,8 +16,6 @@
     - Player-driven vehicles are never touched regardless of model name.
     - Vehicles not in the config are never touched (existing behaviour).
 ]]
-
-
 
 local activeVehicles = {}
 
@@ -35,15 +34,24 @@ local function applyFrame(vehicle, frame)
     for _, extraId in ipairs(frame.on) do
         onSet[extraId] = true
     end
+    -- Apply
     for i = 1, 14 do
         if DoesExtraExist(vehicle, i) then
             if onSet[i] then
-                SetVehicleExtra(vehicle, i, false)
+                SetVehicleExtra(vehicle, i, false) 
             else
-                SetVehicleExtra(vehicle, i, true)
+                SetVehicleExtra(vehicle, i, true) 
             end
         end
     end
+end
+
+local function isControlledByOpenELS(vehicle)
+
+    if type(elsVehs) == "table" and elsVehs[vehicle] ~= nil then
+        return true
+    end
+    return false
 end
 
 local function shouldKeepRunning(vehicle)
@@ -54,6 +62,7 @@ local function shouldKeepRunning(vehicle)
         if IsPedAPlayer(driver) then return false end
     end
     if not IsVehicleSirenOn(vehicle) then return false end
+    if isControlledByOpenELS(vehicle) then return false end
     return true
 end
 
@@ -84,6 +93,7 @@ local function spawnPatternThread(vehicle, patternSet)
 end
 
 CreateThread(function()
+    -- Small initial delay to let the world load before we start scanning.
     Wait(3000)
 
     while true do
@@ -135,8 +145,10 @@ CreateThread(function()
                                 local patternSet = resolvePatternSet(vehicleCfg)
 
                                 if patternSet and #patternSet.frames > 0 then
-                                    activeVehicles[vehicle] = true
-                                    spawnPatternThread(vehicle, patternSet)
+                                    if not isControlledByOpenELS(vehicle) then
+                                        activeVehicles[vehicle] = true
+                                        spawnPatternThread(vehicle, patternSet)
+                                    end
                                 end
                             end
                         end
